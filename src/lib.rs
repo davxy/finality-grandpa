@@ -42,13 +42,13 @@ pub mod voter_set;
 
 mod bitfield;
 #[cfg(feature = "std")]
-mod bridge_state;
 #[cfg(any(test, feature = "fuzz-helpers"))]
 pub mod fuzz_helpers;
 #[cfg(any(test))]
 mod testing;
 mod weights;
 #[cfg(not(feature = "std"))]
+
 mod std {
 	pub use core::{cmp, hash, iter, mem, num, ops};
 
@@ -184,15 +184,18 @@ where
 }
 
 /// Chain context necessary for implementation of the finality gadget.
-pub trait Chain<H: Eq, N: Copy + BlockNumberOps> {
+pub trait Chain {
+	type Hash: Clone + std::fmt::Debug + Eq + Ord;
+	type Number: BlockNumberOps;
+
 	/// Get the ancestry of a block up to but not including the base hash.
 	/// Should be in reverse order from `block`'s parent.
 	///
 	/// If the block is not a descendent of `base`, returns an error.
-	fn ancestry(&self, base: H, block: H) -> Result<Vec<H>, Error>;
+	fn ancestry(&self, base: Self::Hash, block: Self::Hash) -> Result<Vec<Self::Hash>, Error>;
 
 	/// Returns true if `block` is a descendent of or equal to the given `base`.
-	fn is_equal_or_descendent_of(&self, base: H, block: H) -> bool {
+	fn is_equal_or_descendent_of(&self, base: Self::Hash, block: Self::Hash) -> bool {
 		if base == block {
 			return true
 		}
@@ -431,7 +434,7 @@ impl CommitValidationResult {
 /// Duplicate votes or votes from voters not in the voter-set will be ignored,
 /// but it is recommended for the caller of this function to remove those at
 /// signature-verification time.
-pub fn validate_commit<H, N, S, I, C: Chain<H, N>>(
+pub fn validate_commit<H, N, S, I, C: Chain<Hash = H, Number = N>>(
 	commit: &Commit<H, N, S, I>,
 	voters: &VoterSet<I>,
 	chain: &C,
@@ -530,11 +533,11 @@ pub fn process_commit_validation_result(
 	validation_result: CommitValidationResult,
 	mut callback: voter::Callback<voter::CommitProcessingOutcome>,
 ) {
-	if validation_result.is_valid() {
-		callback.run(voter::CommitProcessingOutcome::Good(voter::GoodCommit::new()))
-	} else {
-		callback.run(voter::CommitProcessingOutcome::Bad(voter::BadCommit::from(validation_result)))
-	}
+	// if validation_result.is_valid() {
+	// 	callback.run(voter::CommitProcessingOutcome::Good(voter::GoodCommit::new()))
+	// } else {
+	// 	callback.run(voter::CommitProcessingOutcome::Bad(voter::BadCommit::from(validation_result)))
+	// }
 }
 
 /// Historical votes seen in a round.

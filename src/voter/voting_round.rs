@@ -539,21 +539,21 @@ where
 		loop {
 			trace!(target: LOG_TARGET, "Round: {}, state: {:?}", self.round.number(), self.state);
 
-			match mem::replace(&mut self.state, State::Poisoned) {
+			self.state = match mem::replace(&mut self.state, State::Poisoned) {
 				State::Start(prevote_timer, precommit_timer) => {
 					// FIXME: explain why we only need to try this once
 					// add test for sending primary (i.e. previous round estimate not finalized)
 					let proposed = self.primary_propose().await?;
-					self.state = State::Proposed(prevote_timer, precommit_timer, proposed);
+					State::Proposed(prevote_timer, precommit_timer, proposed)
 				},
 				State::Proposed(mut prevote_timer, precommit_timer, proposed) => {
 					let prevote_timer_ready = handle_inputs!(prevote_timer);
 					let prevoted = self.prevote(prevote_timer_ready).await?;
 
 					if prevoted {
-						self.state = State::Prevoted(precommit_timer);
+						State::Prevoted(precommit_timer)
 					} else {
-						self.state = State::Proposed(prevote_timer, precommit_timer, proposed);
+						State::Proposed(prevote_timer, precommit_timer, proposed)
 					}
 				},
 				State::Prevoted(mut precommit_timer) => {
@@ -561,9 +561,9 @@ where
 					let precommitted = self.precommit(precommit_timer_ready).await?;
 
 					if precommitted {
-						self.state = State::Precommitted;
+						State::Precommitted
 					} else {
-						self.state = State::Prevoted(precommit_timer);
+						State::Prevoted(precommit_timer)
 					}
 				},
 				State::Precommitted => {
@@ -572,12 +572,11 @@ where
 					if self.is_completable() {
 						break
 					} else {
-						self.state = State::Precommitted;
+						State::Precommitted
 					}
 				},
 				State::Poisoned => {
-					// TODO: log and handle error
-					unreachable!();
+					unreachable!("Poisoned state is never returned by match; qed");
 				},
 			}
 		}
